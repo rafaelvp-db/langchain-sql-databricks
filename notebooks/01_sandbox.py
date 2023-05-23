@@ -5,7 +5,13 @@ import datetime
 import os
 from threading import Event, Thread
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria, StoppingCriteriaList, TextIteratorStreamer
+from transformers import (
+  AutoModelForCausalLM,
+  AutoTokenizer,
+  StoppingCriteria,
+  StoppingCriteriaList,
+  TextIteratorStreamer
+)
 
 import textwrap
 
