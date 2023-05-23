@@ -1,12 +1,4 @@
 # Databricks notebook source
-# MAGIC %pip install -q -U langchain databricks-sql-connector triton accelerate transformers
-
-# COMMAND ----------
-
-dbutils.library.restartPython()
-
-# COMMAND ----------
-
 from typing import Any, Dict, Tuple
 import warnings
 import datetime
@@ -138,7 +130,6 @@ def process_stream(instruction, temperature, top_p, top_k, max_new_tokens):
 
     response = ''
     
-
     def generate_and_signal_complete():
         generate.model.generate(**gkw)
 
@@ -162,28 +153,105 @@ generate = InstructionTextGenerationPipeline(
 
 # COMMAND ----------
 
-stop_token_ids = generate.tokenizer.convert_tokens_to_ids(["<|endoftext|>"])
-
-instruction = """
-The sensors table has the following columns:
-
-Value(float)
-Status(string)
-EventTime(datetime)
-TagName(string)
-
-Assume you are a SQL expert. Write a SQL query to count how many Good events exist in the sensors table and display this query.
-
-"""
-
-temperature = 0.3
-top_p = 0.95
-top_k = 0
-max_new_tokens = 500
-response = process_stream(instruction, temperature, top_p, top_k, max_new_tokens)
-
-print(response)
+from pyspark.errors import AnalysisException
 
 # COMMAND ----------
+
+stop_token_ids = generate.tokenizer.convert_tokens_to_ids(["<|endoftext|>"])
+
+DEFAULT_PROMPT = """
+The 'bronze' table is part of the 'sensors' schema, and the 'poc' catalog. The SQL DDL code to create the 'poc.sensors.bronze' table is the following:
+
+CREATE TABLE poc.sensors.bronze (
+  EventTime timestamp,
+  Value float,
+  Status string,
+  TagName string
+)
+
+Possible values for 'Status' are 'Good' and 'Bad' and these are case sensitive.
+
+Assume you are a SQL expert. Write a SQL query to answer the following question about the bronze table: {question}. Write the query without any comments. When including string columns in the WHERE clause, make sure to sanitize the input by converting the column to lower case, for example: 'WHERE lower(Status) = lower('Good')'
+"""
+
+def get_query(
+  question: str,
+  temperature = 0.3,
+  top_p = 0.99,
+  top_k = 1,
+  max_new_tokens = 500
+):
+  
+  prompt = DEFAULT_PROMPT.format(
+    question = question
+  )
+
+  response = process_stream(
+    prompt,
+    temperature,
+    top_p,
+    top_k,
+    max_new_tokens
+  )
+
+  return response
+
+def get_answer(query):
+
+  df = spark.sql(query)
+  return df
+
+def run_chain(question, current_tries = 0, max_tries = 10):
+
+  current_tries_local = current_tries
+  if current_tries < max_tries:
+    try:
+        current_tries_local += 1
+        query = get_query(question)
+        print(f"Attempt {current_tries}, query: {query}")
+        result = get_answer(query)
+        numeric_result = result.toPandas().values[0]
+        print(numeric_result)
+        if numeric_result == 0:
+          raise ValueError(f"The query returned zero rows")
+        display(result)
+
+    except Exception as exception:
+      message = str(exception)
+      new_question = DEFAULT_PROMPT + f""" For example, the query '{query}' is incorrect, it generates the following error: {message}. Please re-write this SQL query. Don't include any comments or explanations, just return the SQL query."""
+      run_chain(question = new_question, current_tries = current_tries_local)
+
+  else:
+    print("Max tries reached")
+
+
+# COMMAND ----------
+
+question = "What is the average Value for sensor readings?"
+
+run_chain(question)
+
+# COMMAND ----------
+
+spark.sql("use catalog poc")
+
+question = "How many rows are there where Status = 'Good'?"
+
+run_chain(question)
+
+# COMMAND ----------
+
+question = "Calculate how many rows are there where Status = 'Good', group by TagName"
+
+run_chain(question)
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC
+# MAGIC SELECT count(*), tagname FROM sensors.bronze WHERE LOWER(STATUS) = LOWER('GOOD') GROUP BY TAGNAME
+
+# COMMAND ----------
+
 
 
