@@ -10,22 +10,12 @@ jobs:
     env: 
       DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
       DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      CLUSTER_ID: ${{ secrets.CLUSTER_ID }}
     steps:
-    - uses: actions/checkout@v3
     - uses: actions/setup-python@v4
       with:
         python-version: '3.10'
-        cache: 'pip' # caching pip dependencies
-    - run: git pull
-    - run: pip install -r requirements.txt
-    - run: mkdir -p ./stats
-    - run: python github_stats/scrape.py
-
-    # Commit and push all changed files.
-    - name: Update stats
-      run: |
-        git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
-        git config --global user.email "${{ env.CI_COMMIT_EMAIL }}"
-        git add stats
-        git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
-        git push origin master --force
+    - run: pip install -U pip && pip install databricks-cli
+    - run: |
+        databricks configure --host $DATABRICKS_HOST --token $DATABRICKS_TOKEN
+        databricks clusters start --cluster-id $CLUSTER_ID
