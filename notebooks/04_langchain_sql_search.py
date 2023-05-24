@@ -76,3 +76,12 @@ tool = Tool(
 )
 
 print(tool.run("databricks sql group by"))
+
+# COMMAND ----------
+
+from langchain.chains import SimpleSequentialChain
+overall_chain = SimpleSequentialChain(chains=[chain, chain_two], verbose=True)
+
+# Run the chain specifying only the input variable for the first chain.
+catchphrase = overall_chain.run("colorful socks")
+print(catchphrase)
