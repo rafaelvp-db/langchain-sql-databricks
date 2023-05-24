@@ -234,11 +234,53 @@ query
 
 # COMMAND ----------
 
-question = f"""The following query returns an error: {query}. The error is the following: '[MISSING_AGGREGATION] The non-aggregating expression 'Eventtime' is based on columns which are not participating in the GROUP BY clause.
-Add the columns or the expression to the GROUP BY, aggregate the expression, or use 'any_value(Eventtime)' if you do not care which of the values within a group is returned.'Please generate a new query which fixes this error and return it. Don't include any introduction or comments, just return the query."""
+# DBTITLE 1,Teaching our LLM with an example
+# We'll make our LLMs life easier by providing an example of a Group By
 
-query = get_data_insights(question = question)
+example = """
+In the example below, we write SQL code to first create a table and then we run a select query with a groupby:
+
+CREATE TEMP VIEW dealer (id, city, car_model, quantity) AS
+VALUES (100, 'Fremont', 'Honda Civic', 10),
+       (100, 'Fremont', 'Honda Accord', 15),
+       (100, 'Fremont', 'Honda CRV', 7),
+       (200, 'Dublin', 'Honda Civic', 20),
+       (200, 'Dublin', 'Honda Accord', 10),
+       (200, 'Dublin', 'Honda CRV', 3),
+       (300, 'San Jose', 'Honda Civic', 5),
+       (300, 'San Jose', 'Honda Accord', 8);
+
+-- Sum of quantity per dealership. Group by `id`.
+> SELECT id, sum(quantity) FROM dealer GROUP BY id ORDER BY id;
+  id sum(quantity)
+ --- -------------
+ 100            32
+ 200            33
+ 300            13"""
+
+question = """What is the average value of sensor readings for each TagName? The output must contain TagNames and Average values."""
+
+prompt = f"""{question}
+You can use the piece of code below as an example:
+{example}"""
+
+query = get_data_insights(
+  question = prompt,
+  data_details_instruction = prettified_metadata
+)
+
 query
+
+# COMMAND ----------
+
+result_df = spark.sql(query)
+display(result_df)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC
+# MAGIC ### Next Step: Tying everything up using Langchain
 
 # COMMAND ----------
 
