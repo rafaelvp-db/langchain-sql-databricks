@@ -12,10 +12,6 @@ from typing import ClassVar
 
 class InstructionLLM(LLM):
 
-  temperature: ClassVar[float] = 0.3
-  top_p: ClassVar[float] = 0.95
-  top_k: ClassVar[int] = 0
-  max_new_tokens: ClassVar[int] = 500
   _pipeline = InstructionTextGenerationPipeline(model_name="mosaicml/mpt-7b-instruct")
         
   @property
@@ -26,43 +22,46 @@ class InstructionLLM(LLM):
   def generate(
     self,
     prompt: str,
+    temperature: float,
+    top_p: float,
+    top_k: int,
+    max_new_tokens: int,
     stop: Optional[List[str]] = None,
     run_manager: Optional[CallbackManagerForLLMRun] = None,
     callbacks = None
   ) -> str:
     
-
     response = self._pipeline.process_stream(
       instruction = prompt,
-      temperature = self.temperature,
-      top_p = self.top_p,
-      top_k = self.top_k,
-      max_new_tokens = self.max_new_tokens
+      temperature = temperature,
+      top_p = top_p,
+      top_k = top_k,
+      max_new_tokens = max_new_tokens
     )
 
     return response
   
   def __call__(
     self,
-    prompt
+    prompt,
+    temperature = 0.3,
+    top_p = 0.95,
+    top_k = 0,
+    max_new_tokens = 1000
   ):
-    return self.generate(prompt = prompt)
+    return self.generate(
+      prompt=prompt,
+      temperature=temperature,
+      top_p=top_p,
+      top_k=top_k,
+      max_new_tokens=max_new_tokens
+    )
   
   def _call(
     self,
     **kwargs
   ):
     pass
-  
-  @property
-  def _identifying_params(self) -> Mapping[str, Any]:
-    """Get the identifying parameters."""
-    return {
-      "temperature": self.temperature,
-      "top_p": self.top_p,
-      "top_k": self.top_k,
-      "max_new_tokens": self.max_new_tokens
-    }
 
 # COMMAND ----------
 
@@ -70,10 +69,15 @@ llm = InstructionLLM()
 
 # COMMAND ----------
 
-llm("What is the capital of Lithuania?")
+# DBTITLE 1,Test 1: Travel Guide
+prompt = "Write me a four day trip guide for Vilnius, Lithuania, during summer. Please include some Michelin star restaurants if possible. Write the instructions separately for each day."
+
+trip_guide = llm(prompt)
+print(trip_guide)
 
 # COMMAND ----------
 
+# DBTITLE 1,Test 2: Explain C++ Code
 prompt = """Describe and explain the piece of C++ code below:
 
 #include<iostream>
@@ -106,6 +110,7 @@ llm(prompt)
 
 # COMMAND ----------
 
+# DBTITLE 1,Test 3: Explain Assembly Code
 prompt = """You are an expert in Assembly programming language. Please describe and explain into detail the following piece of Assembly code:
 
 .686
@@ -139,4 +144,95 @@ llm(prompt)
 
 # COMMAND ----------
 
+# DBTITLE 1,Test 4.1: Explain SAS Code
+code = """
 
+proc delete data=mydblib.NEBLKTAB; run;
+
+data work.NEBLKDAT;
+   input name $ age sex $ bdate mmddyy.;
+   cards;
+amy 3 f 030185
+bill 12 m 121277
+charlie 35 m 010253
+david 19 m 101469
+elinor 42 f 080845
+pearl 78 f 051222
+vera 96 f 101200
+frank 24 m 092663
+georgia 1 f 040687
+henry 46 m 053042
+joann 27 f 020461
+buddy 66 m 101432
+;
+run;
+
+proc sql;
+create table mydblib.NEBLKTAB (BULKLOAD=YES) as
+   select * from work.NEBLKDAT;
+quit;
+
+proc print data=mydblib.NEBLKTAB(BULKUNLOAD=YES);
+ format bdate date7.;
+title 'proc print of table';
+run;
+"""
+
+prompt = f"""The following piece of code contains SAS logic to connect to Netezza. Please explain this SAS piece of code into detail:
+
+{code}
+"""
+
+# COMMAND ----------
+
+comments = llm(prompt)
+comments
+
+# COMMAND ----------
+
+# DBTITLE 1,Test 4.2: Convert SAS Code to PySpark
+prompt = f"""The following piece of code contains SAS logic:
+
+{code}
+
+The explanation for the SAS code can be found below:
+
+'{comments}'
+
+Please re-write this piece of SAS code in Python using the PySpark library. and display only the resulting code, without any text or comments.
+
+"""
+
+python_code = llm(prompt, max_new_tokens=10000)
+print(python_code)
+
+# COMMAND ----------
+
+print(python_code)
+
+# COMMAND ----------
+
+# DBTITLE 1,Test 4.3: Save PySpark code and Lint it
+import subprocess
+from ruff import __main__ as r
+
+python_code = "#" + python_code
+
+with open("/tmp/test.py", "w") as output_file:
+  output_file.write(python_code)
+
+ruff_bin = r.find_ruff_bin()
+result = subprocess.run([ruff_bin, "/tmp/test.py", "--fix-only"], stdout=subprocess.PIPE)
+result.stdout
+
+with open("/tmp/test.py") as fixed_code:
+  print(fixed_code.read())
+
+# COMMAND ----------
+
+# DBTITLE 1,Test 5: Drawing
+prompt = "You are a Machine Learning specialist. Please write a Computer Vision Neural Network in PyTorch Lightning for Image Classification. Include the complete code, without any placeholders."
+
+text_output = llm(prompt, max_new_tokens = 10000)
+
+print(text_output)
