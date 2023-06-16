@@ -12,7 +12,7 @@
 
     * accelerate
     * databricks-sql-connector
-    * flash-attn
+    * flash-attn==1.0.5
     * langchain
     * ninja
     * transformers==4.29.2
