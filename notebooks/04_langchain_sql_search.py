@@ -15,7 +15,7 @@ def search(
   target_suffix: str = "sql-ref-syntax-qry"
 ):
 
-  encoded_term = urllib.parse.quote(term + " site:docs.databricks.com")
+  encoded_term = urllib.parse.quote(term + " site:easyjet.com")
   headers = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
     "Content-Type": "application/json; charset=UTF-8"
@@ -60,8 +60,12 @@ def search(
   except requests.exceptions.RequestException as e:
     print(e)
 
-query_helper = search()
+query_helper = search("flights from ams to greece", target_suffix = "")
 print(query_helper)
+
+# COMMAND ----------
+
+query_helper
 
 # COMMAND ----------
 

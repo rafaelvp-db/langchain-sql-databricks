@@ -54,6 +54,7 @@ class InstructionTextGenerationPipeline:
             torch_dtype=torch_dtype,
             trust_remote_code=trust_remote_code,
             use_auth_token=use_auth_token,
+            init_device = "cuda"
         )
 
         tokenizer = AutoTokenizer.from_pretrained(
