@@ -15,7 +15,7 @@
     * flash-attn==1.0.5
     * langchain
     * ninja
-    * transformers==4.29.2
+    * transformers==4.30.2
     * triton
 
 You should be good to go.
